@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,15 +14,37 @@ namespace EPU
     internal class EPU_Easy_Program_Updater
     {
         #region Settings EPU
-        private string urlProgramFile = @"";
-        private string urlVersionProgramXMLFile = @"";
-        private string nameDownloadFile = @"new." + Process.GetCurrentProcess().MainModule.FileName;
+        private static string urlProgramFile = @"";
+        private static string urlVersionProgramXMLFile = @"";
+        private static string nameFile = @"EPU";
+        private static string nameDownloadFile = @"new." + nameFile;
         #endregion
         public static  void CheckUpdates()
         {
-            
+            if(Version.Parse(GetProgramVersionOnServer()) > Version.Parse(GetProgramVersionOnLocal()))
+            {
+                DownloadFile();
+                Process.Start(nameDownloadFile);
+                System.Environment.Exit(0);
+            }
+            if (File.Exists(nameDownloadFile))
+            {
+                SetupNewVersionFile();
+            }
         }
-        string GetProgramVersionOnServer()
+        static void SetupNewVersionFile()
+        {
+            File.Delete(nameFile);
+            File.Move(nameDownloadFile, nameFile);
+        }
+        static void DownloadFile()
+        {
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(urlProgramFile, nameDownloadFile);
+            }
+        }
+        static string GetProgramVersionOnServer()
         {
             XmlDocument xml = new XmlDocument();
             xml.Load(urlVersionProgramXMLFile);
@@ -29,10 +52,12 @@ namespace EPU
             var remoteVersion = new Version(xml.GetElementsByTagName("version")[0].InnerText); // Версиях XML
             return remoteVersion.ToString();
         }
-        FileVersionInfo GetProgramVersionOnLocal()
+        static string GetProgramVersionOnLocal()
         {
 
-            return FileVersionInfo.GetVersionInfo(Path.Combine(Directory.GetCurrentDirectory(), nameDownloadFile));
+            var localVersion = FileVersionInfo.GetVersionInfo(Path.Combine(Directory.GetCurrentDirectory(), 
+                Process.GetCurrentProcess().MainModule.FileName));
+            return localVersion.ToString();
         }
 
     }
